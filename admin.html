@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التحكم في ظهور النتائج</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f5f4; --card:#fff; --ink:#16282b; --muted:#6b7b7e; --line:#dde3e2;
+  --on:#1f8a5b; --on-bg:#e3f4ec; --off:#b3402e; --off-bg:#fbe9e5; --brand:#0f3d44;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Tajawal',Tahoma,sans-serif;background:var(--bg);color:var(--ink);}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 80px}
+h1{font-size:22px;margin:0 0 4px;font-weight:800}
+.sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px}
+/* login */
+#login{max-width:380px;margin:12vh auto;padding:26px}
+#login input{width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit;margin:12px 0}
+button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:10px 16px;font-weight:700}
+.primary{background:var(--brand);color:#fff}
+.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.msg{font-size:14px;min-height:20px;color:var(--off)}
+/* summary */
+.stats{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stat{flex:1;min-width:140px;padding:12px 16px}
+.stat b{display:block;font-size:26px;font-weight:800}
+.stat span{font-size:13px;color:var(--muted)}
+.stat.on b{color:var(--on)} .stat.off b{color:var(--off)}
+/* toolbar */
+.bar{display:flex;gap:8px;flex-wrap:wrap;padding:12px;margin-bottom:12px;align-items:center}
+.bar input[type=search]{flex:1;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:#fff;border-radius:0;padding:9px 14px;font-weight:500}
+.seg button.act{background:var(--brand);color:#fff}
+.bulk{display:none;gap:8px;padding:10px 12px;margin-bottom:12px;align-items:center;background:#fffbe8;border-color:#e8dca0}
+.bulk.show{display:flex;flex-wrap:wrap}
+.bulk .go-on{background:var(--on);color:#fff}.bulk .go-off{background:var(--off);color:#fff}
+/* table */
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);font-size:15px}
+th{font-size:13px;color:var(--muted);font-weight:500;background:#fafbfb;position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+td.code{font-variant-numeric:tabular-nums;color:var(--muted)}
+.sw{position:relative;width:46px;height:26px;display:inline-block}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw i{position:absolute;inset:0;background:#c9d1d0;border-radius:26px;transition:.2s}
+.sw i:before{content:"";position:absolute;width:20px;height:20px;top:3px;right:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked + i{background:var(--on)}
+.sw input:checked + i:before{transform:translateX(-20px)}
+.sw input:focus-visible + i{outline:2px solid var(--brand);outline-offset:2px}
+.sw.busy{opacity:.5;pointer-events:none}
+.tag{font-size:12px;padding:3px 10px;border-radius:20px;font-weight:700}
+.tag.on{background:var(--on-bg);color:var(--on)} .tag.off{background:var(--off-bg);color:var(--off)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:.25s}
+#toast.show{opacity:1}
+.tbl{max-height:62vh;overflow:auto}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- تسجيل دخول الإدارة -->
+<div id="login" class="card">
+  <h1>دخول الإدارة</h1>
+  <p class="sub">التحكم في ظهور نتائج الطلاب</p>
+  <input type="password" id="pw" placeholder="كلمة مرور الإدارة" autocomplete="current-password">
+  <div class="msg" id="loginMsg"></div>
+  <button class="primary" id="loginBtn" style="width:100%">دخول</button>
+</div>
+
+<!-- لوحة التحكم -->
+<div class="wrap hidden" id="app">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+    <div>
+      <h1>التحكم في ظهور النتائج</h1>
+      <p class="sub">الطالب "ظاهر" = تظهر له نتيجته. "غير ظاهر" = لا يستطيع الدخول ولا ترى نتيجته.</p>
+    </div>
+    <button class="ghost" id="logout">خروج</button>
+  </div>
+
+  <div class="stats">
+    <div class="card stat"><b id="sAll">0</b><span>إجمالي الطلاب</span></div>
+    <div class="card stat on"><b id="sOn">0</b><span>تظهر نتيجتهم</span></div>
+    <div class="card stat off"><b id="sOff">0</b><span>لا تظهر نتيجتهم</span></div>
+  </div>
+
+  <div class="card bar">
+    <input type="search" id="q" placeholder="بحث بالاسم أو الكود">
+    <div class="seg" id="filter">
+      <button data-f="all" class="act">الكل</button>
+      <button data-f="active">ظاهر</button>
+      <button data-f="inactive">غير ظاهر</button>
+    </div>
+    <button class="ghost" id="reload">تحديث</button>
+  </div>
+
+  <div class="card bulk" id="bulk">
+    <span id="bulkCount"></span>
+    <button class="go-on" data-set="active">تفعيل المحدد</button>
+    <button class="go-off" data-set="inactive">إيقاف المحدد</button>
+  </div>
+
+  <div class="card tbl">
+    <table>
+      <thead><tr>
+        <th style="width:40px"><input type="checkbox" id="chkAll" title="تحديد كل المعروض"></th>
+        <th>الاسم</th><th>الكود</th><th>الحالة</th><th style="width:70px">عرض النتيجة</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty hidden" id="empty">لا توجد نتائج مطابقة</div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ضع هنا نفس رابط Apps Script المستخدم في صفحة النتائج */
+const API_URL = "https://script.google.com/macros/s/AKfycbyVRj4cc24Xe7HYFtBBHoodi9tyXGnhDZr4WnraLhU3UX7wcmu92xlQg22DDFvq0VBCqQ/exec";
+
+let adminToken = sessionStorage.getItem("adm_token") || "";
+let students = [];           // {code,name,status}
+let filter = "all";
+const selected = new Set();
+
+const $ = id => document.getElementById(id);
+function toast(t){ const el=$("toast"); el.textContent=t; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),2200); }
+
+async function api(payload){
+  const res = await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+  return res.json();
+}
+
+/* ---------- دخول ---------- */
+async function doLogin(){
+  $("loginMsg").textContent=""; $("loginBtn").disabled=true;
+  try{
+    const r = await api({action:"adminLogin",password:$("pw").value});
+    if(r.status==="success"){ adminToken=r.token; sessionStorage.setItem("adm_token",adminToken); await start(); }
+    else $("loginMsg").textContent = r.msg || "تعذر الدخول";
+  }catch(e){ $("loginMsg").textContent="تعذر الاتصال بالخادم"; }
+  $("loginBtn").disabled=false;
+}
+$("loginBtn").onclick=doLogin;
+$("pw").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+$("logout").onclick=()=>{ sessionStorage.removeItem("adm_token"); location.reload(); };
+
+/* ---------- تحميل ---------- */
+async function load(){
+  const r = await api({action:"adminList",token:adminToken});
+  if(r.status==="unauthorized"){ sessionStorage.removeItem("adm_token"); location.reload(); return; }
+  if(r.status!=="success"){ toast(r.msg||"فشل التحميل"); return; }
+  students=r.students; selected.clear(); render();
+}
+async function start(){
+  $("login").classList.add("hidden"); $("app").classList.remove("hidden"); await load();
+}
+$("reload").onclick=load;
+
+/* ---------- عرض ---------- */
+function visible(){
+  const q=$("q").value.trim();
+  return students.filter(s=>
+    (filter==="all"||s.status===filter) &&
+    (!q || s.name.includes(q) || s.code.includes(q) || (s.nid||"").includes(q)));
+}
+function render(){
+  const on=students.filter(s=>s.status==="active").length;
+  $("sAll").textContent=students.length; $("sOn").textContent=on; $("sOff").textContent=students.length-on;
+
+  const list=visible();
+  $("empty").classList.toggle("hidden",list.length>0);
+  $("rows").innerHTML=list.map(s=>`
+    <tr>
+      <td><input type="checkbox" class="chk" data-c="${s.code}" ${selected.has(s.code)?"checked":""}></td>
+      <td>${esc(s.name)}</td>
+      <td class="code">${esc(s.code)}</td>
+      <td><span class="tag ${s.status==="active"?"on":"off"}">${s.status==="active"?"إظهار":"غير ظاهر"}</span></td>
+      <td><label class="sw"><input type="checkbox" class="tg" data-c="${s.code}" ${s.status==="active"?"checked":""}><i></i></label></td>
+    </tr>`).join("");
+
+  $("bulk").classList.toggle("show",selected.size>0);
+  $("bulkCount").textContent=`تم تحديد ${selected.size} طالب`;
+  $("chkAll").checked = list.length>0 && list.every(s=>selected.has(s.code));
+}
+function esc(t){ return String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+$("q").addEventListener("input",render);
+$("filter").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  filter=b.dataset.f;
+  [...$("filter").children].forEach(x=>x.classList.toggle("act",x===b));
+  render();
+});
+$("chkAll").onchange=e=>{
+  visible().forEach(s=> e.target.checked ? selected.add(s.code) : selected.delete(s.code));
+  render();
+};
+
+/* ---------- تغيير الحالة ---------- */
+async function setStatus(codes,status){
+  const r = await api({action:"adminSetStatus",token:adminToken,codes,status});
+  if(r.status==="unauthorized"){ location.reload(); return false; }
+  if(r.status!=="success"){ toast(r.msg||"فشل الحفظ"); return false; }
+  const set=new Set(codes);
+  students.forEach(s=>{ if(set.has(s.code)) s.status=status; });
+  return true;
+}
+
+$("rows").addEventListener("change",async e=>{
+  const t=e.target;
+  if(t.classList.contains("chk")){ t.checked?selected.add(t.dataset.c):selected.delete(t.dataset.c); render(); return; }
+  if(t.classList.contains("tg")){
+    const status=t.checked?"active":"inactive", lab=t.closest(".sw");
+    lab.classList.add("busy");
+    const ok=await setStatus([t.dataset.c],status);
+    if(!ok) t.checked=!t.checked;
+    else toast(status==="active"?"تم إظهار النتيجة":"تم إخفاء النتيجة");
+    render();
+  }
+});
+
+$("bulk").addEventListener("click",async e=>{
+  const b=e.target.closest("button[data-set]"); if(!b) return;
+  const codes=[...selected], status=b.dataset.set;
+  if(!confirm(`سيتم ${status==="active"?"تفعيل":"إيقاف"} ${codes.length} طالب. متابعة؟`)) return;
+  b.disabled=true;
+  if(await setStatus(codes,status)){ selected.clear(); toast("تم الحفظ"); }
+  b.disabled=false; render();
+});
+
+if(adminToken) start();
+</script>
+</body>
+</html>
